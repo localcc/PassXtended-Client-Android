@@ -1,0 +1,32 @@
+<resources>
+    <string name="app_name">My Application</string>
+    <string name="server_field">Server IP Address</string>
+    <string name="server_password">Server Password</string>
+    <string name="login_button">Login</string>
+
+
+    <!--Setup wizard-->
+    <string name="setupwizard_ip">Server IP</string>
+    <string name="setupwizard_port">Server port</string>
+    <string name="setupwizard_check">Check</string>
+    <string name="setupwizard_empty">IP address and port should not be empty</string>
+
+    <!-- Authentication -->
+    <string name="authentication_input_password">Enter password</string>
+    <!-- Fingerprint -->
+    <string name="authentication_fingerprint_cancel">Cancel</string>
+    <string name="authentication_fingerprint_title">Fingerprint authentication</string>
+
+    <!-- Certificate dialog-->
+    <string name="certificate_dialog_title">Trust certificate?</string>
+
+
+    <!-- General -->
+    <string name="ok">OK</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+    <string name="iv_mark">\u2714</string>
+    <string name="x_mark">\u274c</string>
+    <string name="next">Next</string>
+    <string name="finish">Finish</string>
+</resources>

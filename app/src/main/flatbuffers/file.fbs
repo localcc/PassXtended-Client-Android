@@ -1,0 +1,8 @@
+namespace com.localcc.passxtended.protos;
+
+table file {
+    data:[byte];
+    filename:string;
+}
+
+root_type file;

@@ -1,0 +1,8 @@
+include "file.fbs";
+
+namespace com.localcc.passxtended.protos;
+table files {
+    all_files:[file];
+}
+
+root_type files;
