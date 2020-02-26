@@ -5,15 +5,25 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.biometric.BiometricManager;
 import androidx.biometric.BiometricPrompt;
 import androidx.core.content.ContextCompat;
+import androidx.fragment.app.DialogFragment;
+import androidx.fragment.app.FragmentManager;
 import androidx.preference.PreferenceManager;
 
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Button;
+import android.widget.EditText;
 
+import com.google.android.material.textfield.TextInputLayout;
 import com.localcc.passxtended.Constants;
 import com.localcc.passxtended.R;
+import com.localcc.passxtended.client.Client;
+import com.localcc.passxtended.ui.dialogs.WarningDialog;
+
+import java.io.IOException;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 
 public class AuthenticationActivity extends AppCompatActivity {
 
@@ -45,9 +55,33 @@ public class AuthenticationActivity extends AppCompatActivity {
                     .build();
             prompt.authenticate(promptInfo);
         }
-        Button login_button = (Button)findViewById(R.id.login_button);
+        Button login_button = findViewById(R.id.login_button);
         login_button.setOnClickListener(listener -> {
-            
+            EditText password_textedit = findViewById(R.id.password_textedit);
+
+            String received_password = password_textedit.getText().toString();
+            System.out.println(received_password);
+            if(received_password.equals("")) {
+                DialogFragment dialogFragment = new WarningDialog(R.string.authentication_input_password_empty,
+                        R.string.ok);
+                FragmentManager fragmentManager = getSupportFragmentManager();
+                dialogFragment.show(fragmentManager, "authentication_empty");
+                return;
+            }
+            Client.CLIENT_INSTANCE = new Client(this);
+
+            try {
+                Client.CLIENT_INSTANCE.connect(preferences.getString(Constants.IP_ALIAS, ""),
+                        preferences.getInt(Constants.PORT_ALIAS, -1));
+            } catch (IOException | KeyManagementException | NoSuchAlgorithmException e) {
+                e.printStackTrace();
+                DialogFragment dialogFragment = new WarningDialog(R.string.connection_error,
+                        R.string.ok);
+                FragmentManager fragmentManager = getSupportFragmentManager();
+                dialogFragment.show(fragmentManager, "server_connection_error");
+                return;
+            }
+
         });
 
 

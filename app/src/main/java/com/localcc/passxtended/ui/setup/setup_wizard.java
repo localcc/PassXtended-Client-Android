@@ -78,6 +78,8 @@ public class setup_wizard extends AppCompatActivity {
                         try {
                             Client client = new Client(setup_wizard.this);
                             client.connect(ip, port);
+
+                            client.ReadAllFiles();
                             runOnUiThread(() -> {
                                 TextView view = findViewById(R.id.resultMark);
                                 view.setText(R.string.iv_mark);

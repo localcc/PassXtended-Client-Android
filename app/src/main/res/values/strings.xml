@@ -13,6 +13,8 @@
 
     <!-- Authentication -->
     <string name="authentication_input_password">Enter password</string>
+    <string name="authentication_input_password_empty">Password field should not be empty!</string>
+
     <!-- Fingerprint -->
     <string name="authentication_fingerprint_cancel">Cancel</string>
     <string name="authentication_fingerprint_title">Fingerprint authentication</string>
@@ -29,4 +31,6 @@
     <string name="x_mark">\u274c</string>
     <string name="next">Next</string>
     <string name="finish">Finish</string>
+    <string name="wrong_password">Incorrect password!</string>
+    <string name="connection_error">Failed to connect to server!</string>
 </resources>
