@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.os.Build;
+import android.util.Base64;
 
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
@@ -19,6 +20,7 @@ import com.localcc.passxtended.ui.dialogs.CertificateDialog;
 import com.localcc.passxtended.ui.dialogs.WarningDialog;
 import com.localcc.passxtended.ui.setup.setup_wizard;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.SocketException;
 import java.security.InvalidAlgorithmParameterException;
@@ -30,14 +32,18 @@ import java.security.SecureRandom;
 import java.security.cert.CertStore;
 import java.security.cert.CertStoreException;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
 import java.security.cert.CollectionCertStoreParameters;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Semaphore;
+import java.util.stream.Collectors;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
@@ -46,6 +52,17 @@ import javax.net.ssl.X509TrustManager;
 
 public class SslHelper {
     static X509Certificate cert;
+
+
+    private static X509Certificate getCertificateFromString(String s) throws CertificateException {
+        CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
+        ByteArrayInputStream is = new ByteArrayInputStream(Base64.decode(s, 0));
+        return (X509Certificate)certificateFactory.generateCertificate(is);
+    }
+
+    private static String getStringFrromCertificate(X509Certificate cert) throws CertificateEncodingException {
+        return Base64.encodeToString(cert.getEncoded(), 0);
+    }
 
 
     public static SSLContext CreateContext(Context ctx) throws NoSuchAlgorithmException, KeyManagementException {
@@ -62,70 +79,77 @@ public class SslHelper {
                     public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
                         AppCompatActivity setup_wizard_activity = (AppCompatActivity)ctx;
 
-                        try {
-                            KeyStore keyStore = KeyStore.getInstance(Constants.ANDROID_KEYSTORE_NAME);
-                            keyStore.load(null);
-                            Semaphore mutex = new Semaphore(1);
-                            for(X509Certificate cert : chain) {
-                                Certificate keyStore_certificate = keyStore.getCertificate("cert_" + cert.getSerialNumber());
-                                if(keyStore_certificate != null) {
-                                    if(cert.equals((X509Certificate)keyStore_certificate)) continue;
-                                }
-                                BoolPtr accepted = new BoolPtr();
-                                DialogFragment dialogFragment = new CertificateDialog(
-                                        cert.getIssuerDN().toString(),
-                                        cert.getSigAlgName(),
-                                        cert.getSigAlgOID(),
-                                        Arrays.toString(cert.getSigAlgParams()),
-                                        //Positive
-                                        (dialog, which) -> {
-                                            accepted.val = true;
-                                            mutex.release();
-                                        },
-                                        //Negative
-                                        (dialog, which) -> {
-                                            accepted.val = false;
-                                            mutex.release();
-                                        }
-                                );
-                                FragmentManager manager = setup_wizard_activity.getSupportFragmentManager();
-                                try {
-                                    mutex.acquire(); // waiting for user to click the button
-                                } catch (InterruptedException e) {
-                                    e.printStackTrace();
-                                }
-                                dialogFragment.show(manager, "cert_ask" + cert.getSerialNumber());
-                                try {
-                                    mutex.acquire(); // waiting for user to click the button
-                                    mutex.release();
-                                } catch (InterruptedException e) {
-                                    e.printStackTrace();
-                                }
-                                if(!accepted.val) throw new CertificateException();
-                                else keyStore.setCertificateEntry(Constants.CERT_STORAGE_PREFIX + cert.getSerialNumber(), cert);
-
+                        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(ctx);
+                        SharedPreferences.Editor preferenceEditor = preferences.edit();
+                        Semaphore mutex = new Semaphore(1);
+                        for(X509Certificate cert : chain) {
+                            String storage_cert_k = preferences.getString(
+                                    Constants.CERT_STORAGE_PREFIX + cert.getSerialNumber(),
+                                    "");
+                            if(!storage_cert_k.equals("")) {
+                                X509Certificate keyStore_certificate =
+                                        getCertificateFromString(storage_cert_k);
+                                if (cert.equals((X509Certificate) keyStore_certificate)) continue;
                             }
+                            BoolPtr accepted = new BoolPtr();
+                            DialogFragment dialogFragment = new CertificateDialog(
+                                    cert.getIssuerDN().toString(),
+                                    cert.getSigAlgName(),
+                                    cert.getSigAlgOID(),
+                                    Arrays.toString(cert.getSigAlgParams()),
+                                    //Positive
+                                    (dialog, which) -> {
+                                        accepted.val = true;
+                                        mutex.release();
+                                    },
+                                    //Negative
+                                    (dialog, which) -> {
+                                        accepted.val = false;
+                                        mutex.release();
+                                    }
+                            );
+                            FragmentManager manager = setup_wizard_activity.getSupportFragmentManager();
+                            try {
+                                mutex.acquire(); // waiting for user to click the button
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                            dialogFragment.show(manager, "cert_ask" + cert.getSerialNumber());
+                            try {
+                                mutex.acquire(); // waiting for user to click the button
+                                mutex.release();
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                            if(!accepted.val) throw new CertificateException();
+                            else preferenceEditor.putString(Constants.CERT_STORAGE_PREFIX + cert.getSerialNumber(),
+                                    getStringFrromCertificate(cert));
 
-                        } catch (NoSuchAlgorithmException | KeyStoreException | IOException e) {
-                            e.printStackTrace();
+
                         }
+                        preferenceEditor.apply();
+
 
                     }
 
                     @Override
                     public X509Certificate[] getAcceptedIssuers() {
-                        try {
-                            KeyStore ks = KeyStore.getInstance(Constants.ANDROID_KEYSTORE_NAME);
-                            ks.load(null);
-                            List<X509Certificate> certificateList = new ArrayList<>();
-                            while(ks.aliases().hasMoreElements()) {
-                                Certificate keyStoreCert = ks.getCertificate(ks.aliases().nextElement());
-                                if(keyStoreCert != null) certificateList.add((X509Certificate)keyStoreCert);
+                        /*
+                        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(ctx);
+                        Map<String, ?> filtered = preferences.getAll().entrySet().stream().filter(entry ->
+                            entry.getKey().startsWith(Constants.CERT_STORAGE_PREFIX))
+                                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+                        List<X509Certificate> certificateList = new ArrayList<>();
+                        filtered.forEach((k, v) -> {
+                            try {
+                                X509Certificate cert = getCertificateFromString((String)v);
+                                certificateList.add(cert);
+                            } catch (CertificateException e) {
+                                e.printStackTrace();
                             }
-                            return certificateList.toArray(new X509Certificate[0]);
-                        } catch (KeyStoreException | CertificateException | IOException | NoSuchAlgorithmException e) {
-                            e.printStackTrace();
-                        }
+                        });
+                        return certificateList.toArray(new X509Certificate[0]);*/
                         return new X509Certificate[0];
 
                     }
